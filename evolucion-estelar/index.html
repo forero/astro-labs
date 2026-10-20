@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Modelo interactivo de evolución estelar: masa inicial y tiempo como perillas, con los números de cada fase y las ecuaciones que los producen.">
+<title>Evolución de una estrella</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: perillas arriba, la estrella y sus números en el medio, las ecuaciones abajo */
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --ink:#141922; --ink-2:#4A5361; --ink-3:#7A8392;
+  --line:#DDE1E8; --line-soft:#EDEFF3;
+  --accent:#1F6FD0; --void:#0B0E14;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --body:"Inter",system-ui,-apple-system,Segoe UI,sans-serif;
+  --display:"Fraunces","Iowan Old Style",Georgia,serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161A1F; --surface:#1D222A; --ink:#EEF1F5; --ink-2:#AFB7C3; --ink-3:#7E8794;
+  --line:#2E353F; --line-soft:#252B33; --accent:#4F95DE; --void:#0A0D12;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#161A1F; --surface:#1D222A; --ink:#EEF1F5; --ink-2:#AFB7C3; --ink-3:#7E8794;
+  --line:#2E353F; --line-soft:#252B33; --accent:#4F95DE; --void:#0A0D12;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:clamp(18px,3vw,34px);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1020px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(1.7rem,4.2vw,2.5rem);margin:0;letter-spacing:-0.01em;text-wrap:balance}
+.lede{margin:6px 0 0;color:var(--ink-2);max-width:62ch;font-size:0.97rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.eyebrow{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.controls{grid-template-columns:1fr}}
+.ctl label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:0.9rem;font-weight:500}
+.ctl .val{font-family:var(--mono);font-size:1.02rem;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;margin:10px 0 0;accent-color:var(--accent);height:26px}
+.hint{font-size:0.78rem;color:var(--ink-3);margin:4px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{font-family:var(--mono);font-size:0.72rem;padding:5px 9px;border-radius:999px;border:1px solid var(--line);
+  background:transparent;color:var(--ink-2);cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.duo{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.duo{grid-template-columns:1fr}}
+.stage{position:relative;background:var(--void);border-radius:10px;height:290px;display:grid;place-items:center;overflow:hidden}
+.stage svg{display:block;max-width:100%}
+.scalenote{position:absolute;left:10px;bottom:8px;font-family:var(--mono);font-size:0.66rem;color:#8A93A3}
+.phase{font-family:var(--display);font-size:1.3rem;font-weight:700;margin:0 0 4px;text-wrap:balance}
+.phase-note{font-size:0.86rem;color:var(--ink-2);margin:0;min-height:4.4em}
+.readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:14px}
+@media (max-width:420px){.readout{grid-template-columns:1fr}}
+.cell{background:var(--surface);padding:9px 11px;min-width:0}
+.cell .k{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-3)}
+.cell .v{font-family:var(--mono);font-size:1.0rem;font-variant-numeric:tabular-nums;margin-top:2px;overflow-wrap:anywhere}
+.swatch{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:6px;border:1px solid rgba(128,128,128,.35)}
+
+.eqs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 22px}
+@media (max-width:720px){.eqs{grid-template-columns:1fr}}
+.eq{min-width:0}
+.eq h3{font-size:0.86rem;margin:0 0 4px;font-weight:600}
+.eq .f{font-family:var(--mono);font-size:0.85rem;background:var(--line-soft);border-radius:7px;padding:7px 9px;overflow-x:auto;white-space:nowrap}
+.eq p{font-size:0.78rem;color:var(--ink-3);margin:5px 0 0}
+footer{color:var(--ink-3);font-size:0.78rem;border-top:1px solid var(--line);padding-top:14px}
+footer b{color:var(--ink-2);font-weight:600}
+</style>
+<style>
+html,body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>Evolución de una estrella</h1>
+    <p class="lede">Dos perillas: con cuánta masa nace la estrella y cuánto tiempo ha vivido. Todo lo demás sale de ahí. La página no dibuja ninguna gráfica, ni curvas ni diagrama: entrega números, y las gráficas las hacen ustedes en papel.</p>
+  </header>
+
+  <section class="card">
+    <div class="controls">
+      <div class="ctl">
+        <label for="mass">Masa inicial <span class="val" id="massVal">1.0 M☉</span></label>
+        <input type="range" id="mass" min="0" max="1000" value="0" step="1">
+        <p class="hint">De 0.5 a 30 masas solares. Al cambiarla, la estrella vuelve a nacer.</p>
+      </div>
+      <div class="ctl">
+        <label for="time">Tiempo vivido <span class="val" id="timeVal">0 años</span></label>
+        <input type="range" id="time" min="0" max="10000" value="0" step="1">
+        <p class="hint" id="timeHint"></p>
+        <div class="chips" id="jumps"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">La estrella</p>
+    <div class="duo">
+      <div class="stage">
+        <svg id="starSvg" viewBox="0 0 320 290" width="320" height="290" role="img" aria-label="Tamaño y color de la estrella comparados con el Sol"></svg>
+        <span class="scalenote">escala logarítmica de radio</span>
+      </div>
+      <div>
+        <h2 class="phase" id="phaseName">Secuencia principal</h2>
+        <p class="phase-note" id="phaseNote"></p>
+        <div class="readout" aria-live="polite">
+          <div class="cell"><div class="k">Edad</div><div class="v" id="rAge">0 años</div></div>
+          <div class="cell"><div class="k">Luminosidad</div><div class="v" id="rL">1.00 L☉</div></div>
+          <div class="cell"><div class="k">Radio</div><div class="v" id="rR">1.00 R☉</div></div>
+          <div class="cell"><div class="k">Temperatura</div><div class="v" id="rT">5772 K</div></div>
+          <div class="cell"><div class="k">Índice de color</div><div class="v" id="rBV"></div></div>
+          <div class="cell"><div class="k">Magnitud absoluta</div><div class="v" id="rM">+4.83</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">Las ecuaciones que se están resolviendo</p>
+    <div class="eqs">
+      <div class="eq">
+        <h3>Masa y luminosidad al nacer</h3>
+        <div class="f">L/L☉ = M<sup>4</sup>&nbsp;&nbsp;(0.43 &lt; M &lt; 2)<br>L/L☉ = 1.4 M<sup>3.5</sup>&nbsp;&nbsp;(2 &lt; M &lt; 55)</div>
+        <p>Con M en masas solares. Es la relación masa luminosidad empírica de la secuencia principal.</p>
+      </div>
+      <div class="eq">
+        <h3>Radio al nacer</h3>
+        <div class="f">R/R☉ = M<sup>0.8</sup></div>
+        <p>Ajuste a las estrellas de secuencia principal de masa mayor que la solar.</p>
+      </div>
+      <div class="eq">
+        <h3>Temperatura superficial</h3>
+        <div class="f">L = 4π R² σ T<sup>4</sup><br>T = T☉ (L/L☉)<sup>1/4</sup> (R☉/R)<sup>1/2</sup></div>
+        <p>Ley de Stefan y Boltzmann, con T☉ = 5772 K. Es la única física pura del modelo: lo demás son ajustes a estrellas reales.</p>
+      </div>
+      <div class="eq">
+        <h3>Tiempo en la secuencia principal</h3>
+        <div class="f">t = 10<sup>10</sup> años × M<sup>−2.5</sup></div>
+        <p>Sale de dividir el combustible, proporcional a la masa, entre la rapidez con que se gasta, proporcional a la luminosidad.</p>
+      </div>
+      <div class="eq">
+        <h3>Magnitud absoluta</h3>
+        <div class="f">M<sub>V</sub> = 4.83 − 2.5 log₁₀(L/L☉)</div>
+        <p>La misma del taller pasado, con el Sol como referencia.</p>
+      </div>
+      <div class="eq">
+        <h3>Índice de color</h3>
+        <div class="f">T = 4600 K [ 1/(0.92(B−V)+1.7) + 1/(0.92(B−V)+0.62) ]</div>
+        <p>Fórmula de Ballesteros, resuelta al revés para sacar B−V de la temperatura. El color del disco sale de la ley de Planck a esa misma temperatura.</p>
+      </div>
+      <div class="eq" style="grid-column:1/-1">
+        <h3>Cómo avanza de una fase a otra</h3>
+        <div class="f">log L y log T varían linealmente en el tiempo entre los valores de anclaje de cada fase</div>
+        <p>Los anclajes son cifras de texto estándar: punta de la rama de las gigantes en 2500 L☉ × M<sup>0.4</sup> a 3300 K, quema de helio en 50 L☉ × M<sup>1.5</sup> a 4800 K, punta de la rama asintótica en 5000 L☉ × M<sup>0.7</sup> a 2900 K, enana blanca de 0.0135 R☉ enfriándose de 90 mil a 5 mil kelvin, estrella de neutrones de 10 km de radio. La duración de cada fase es una fracción fija del tiempo en la secuencia principal. El radio nunca se interpola: siempre se despeja de la ley de Stefan y Boltzmann.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>Qué tan en serio tomarse esto.</b> No es un código de evolución estelar: es un modelo de juguete que interpola entre valores conocidos de trayectorias reales, con una precisión de un factor de dos, no mejor. Sirve para ver la forma de la evolución y el orden de magnitud. Los modelos de verdad, como MIST o PARSEC, resuelven la estructura interna capa por capa y no suponen ninguna de las relaciones de arriba.
+  </footer>
+</div>
+
+<script>
+const Tsun = 5772;
+
+/* ---------- modelo ---------- */
+function zamsL(M){
+  if (M < 0.43) return 0.23*Math.pow(M,2.3);
+  if (M < 2)    return Math.pow(M,4);
+  if (M < 55)   return 1.4*Math.pow(M,3.5);
+  return 32000*M;
+}
+function teffFrom(L,R){ return Tsun*Math.pow(L/(R*R),0.25); }
+function radiusFrom(L,T){ return Math.sqrt(L)*Math.pow(Tsun/T,2); }
+
+function buildTrack(M){
+  const Lz = zamsL(M), Rz = Math.pow(M,0.8), Tz = teffFrom(Lz,Rz);
+  const tms = 1e10*Math.pow(M,-2.5);
+  const segs = [];
+  const push = (name,dur,L0,T0,L1,T1,note) => segs.push({name,dur,L0,T0,L1,T1,note});
+
+  if (M < 8){
+    push("Secuencia principal", tms, Lz,Tz, 1.6*Lz, 0.95*Tz,
+      "Fusiona hidrógeno en helio en el núcleo. Es donde la estrella pasa casi toda su vida, y por eso casi todas las estrellas que vemos están aquí.");
+    const Tsg = Math.min(5200, 0.85*Tz);
+    push("Subgigante", 0.07*tms, 1.6*Lz,0.95*Tz, 2.2*Lz,Tsg,
+      "Se acabó el hidrógeno del núcleo. Ahora quema en una capa alrededor de un núcleo de helio inerte, y la estrella empieza a hincharse.");
+    const Ltip = Math.max(2500*Math.pow(M,0.4), 4*Lz);
+    push("Gigante roja", 0.06*tms, 2.2*Lz,Tsg, Ltip,3300,
+      "La envoltura se infla cientos de veces y se enfría. Sube muchísimo de brillo sin cambiar de masa: el color se va al rojo y el radio se dispara.");
+    const Lhb = Math.max(50*Math.pow(M,1.5), 0.02*Ltip);
+    push("Quema de helio", 0.004*tms, Ltip,3300, Lhb,4800,
+      "El núcleo prende el helio y lo convierte en carbono y oxígeno. La estrella se encoge y se calienta: baja de brillo y se devuelve hacia la izquierda del diagrama.");
+    const Lagb = Math.max(5000*Math.pow(M,0.7), 2*Ltip);
+    push("Rama asintótica", 0.012*tms, Lhb,4800, Lagb,2900,
+      "Dos capas encendidas a la vez, hidrógeno y helio, sobre un núcleo de carbono. Vuelve a inflarse, más grande y más brillante que nunca, y empieza a soltar sus capas externas.");
+    const Rwd = 0.0135;
+    const Lwd0 = Rwd*Rwd*Math.pow(90000/Tsun,4), Lwd1 = Rwd*Rwd*Math.pow(5000/Tsun,4);
+    push("Nebulosa planetaria", 25000, Lagb,2900, Lwd0,90000,
+      "Las capas externas se van y queda el núcleo desnudo, muy caliente, que las ilumina. Esta etapa dura unas pocas decenas de miles de años: un parpadeo.");
+    push("Enana blanca", 3e9, Lwd0,90000, Lwd1,5000,
+      "Lo que queda tiene el tamaño de la Tierra y la masa de media estrella. No fusiona nada: solo se enfría, y seguirá enfriándose durante decenas de miles de millones de años.");
+  } else {
+    push("Secuencia principal", tms, Lz,Tz, 1.6*Lz, 0.90*Tz,
+      "Quema hidrógeno a una velocidad enorme. Es decenas de miles de veces más luminosa que el Sol, y por eso vive mil veces menos.");
+    push("Supergigante roja", 0.10*tms, 1.6*Lz,0.90*Tz, 2.2*Lz,3500,
+      "Agotado el hidrógeno del núcleo, la envoltura se infla hasta cientos de radios solares. Por dentro va encendiendo, en capas, carbono, neón, oxígeno y silicio.");
+    if (M < 25){
+      const Rns = 1.4e-5;
+      push("Estrella de neutrones", 3e5,
+        Rns*Rns*Math.pow(1.2e6/Tsun,4),1.2e6, Rns*Rns*Math.pow(3e5/Tsun,4),3e5,
+        "El núcleo de hierro colapsa y el resto sale disparado: supernova. Queda una esfera de veinte kilómetros con más masa que el Sol, girando rápido.");
+    } else {
+      push("Agujero negro", 3e5, 1e-12,1e4, 1e-12,1e4,
+        "El colapso no se detiene en ninguna parte. No queda superficie que emita luz, así que la estrella desaparece del diagrama.");
+    }
+  }
+  let total = 0; for (const s of segs){ s.t0 = total; total += s.dur; s.t1 = total; }
+  return {M, Lz, Rz, Tz, tms, segs, total};
+}
+
+function stateAt(tr, frac){
+  const t = frac*tr.total;
+  const last = tr.segs[tr.segs.length-1];
+  let s = last, u = 1;
+  for (const seg of tr.segs){
+    if (t <= seg.t1 || seg === last){
+      s = seg; u = seg.dur > 0 ? Math.min(1,Math.max(0,(t-seg.t0)/seg.dur)) : 1; break;
+    }
+  }
+  const lg = (a,b)=> Math.pow(10, Math.log10(a)+u*(Math.log10(b)-Math.log10(a)));
+  const L = lg(s.L0,s.L1), T = lg(s.T0,s.T1);
+  return {t, L, T, R: radiusFrom(L,T), phase: s.name, note: s.note,
+          collapsed: s.name === "Agujero negro"};
+}
+
+/* color de cuerpo negro, aproximación del lugar planckiano */
+function bbColor(T){
+  const t = Math.min(40000,Math.max(1000,T))/100;
+  let r,g,b;
+  if (t <= 66){ r = 255; g = 99.4708025861*Math.log(t) - 161.1195681661; }
+  else { r = 329.698727446*Math.pow(t-60,-0.1332047592); g = 288.1221695283*Math.pow(t-60,-0.0755148492); }
+  if (t >= 66) b = 255; else if (t <= 19) b = 0; else b = 138.5177312231*Math.log(t-10) - 305.0447927307;
+  const c = v => Math.round(Math.min(255,Math.max(0,v)));
+  return [c(r),c(g),c(b)];
+}
+const rgbStr = a => `rgb(${a[0]},${a[1]},${a[2]})`;
+
+/* B menos V a partir de la temperatura, Ballesteros invertida */
+function bvFromT(T){
+  const f = bv => 4600*(1/(0.92*bv+1.7) + 1/(0.92*bv+0.62));
+  let lo = -0.4, hi = 2.5;
+  if (T > f(lo) || T < f(hi)) return null;
+  for (let i=0;i<60;i++){ const mid=(lo+hi)/2; if (f(mid) > T) lo = mid; else hi = mid; }
+  return (lo+hi)/2;
+}
+
+/* ---------- formato ---------- */
+function fmtAge(y){
+  if (y < 1000) return Math.round(y)+" años";
+  if (y < 1e6) return (y/1e3).toPrecision(3)+" mil años";
+  if (y < 1e9) return (y/1e6).toPrecision(3)+" millones de años";
+  return (y/1e9).toPrecision(3)+" mil millones de años";
+}
+function sig(x,n=3){
+  if (x >= 1e5 || (x < 1e-2 && x > 0)) return x.toExponential(1).replace("e+","e");
+  return Number(x.toPrecision(n)).toLocaleString("es",{maximumFractionDigits:4});
+}
+
+/* ---------- estado ---------- */
+let track = buildTrack(1.0), frac = 0;
+const $ = id => document.getElementById(id);
+const massFromSlider = v => 0.5*Math.pow(60, v/1000);
+const sliderFromMass = m => Math.round(1000*Math.log(m/0.5)/Math.log(60));
+
+/* ---------- la estrella ---------- */
+const SUN_PX = 52;
+function drawStar(st){
+  const col = st.collapsed ? [16,18,24] : bbColor(st.T);
+  const lr = Math.log10(Math.max(1e-5, st.R));
+  const px = st.collapsed ? 10 : Math.max(3, Math.min(132, SUN_PX*(1 + lr/2.4)));
+  const c = rgbStr(col);
+  $("starSvg").innerHTML = `
+    <defs>
+      <radialGradient id="g1" cx="38%" cy="36%" r="72%">
+        <stop offset="0%" stop-color="${rgbStr(col.map(v=>Math.min(255,v+45)))}"/>
+        <stop offset="68%" stop-color="${c}"/>
+        <stop offset="100%" stop-color="${rgbStr(col.map(v=>Math.round(v*0.72)))}"/>
+      </radialGradient>
+      <radialGradient id="g2" cx="50%" cy="50%" r="50%">
+        <stop offset="55%" stop-color="${c}" stop-opacity="0.32"/>
+        <stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="208" cy="140" r="${SUN_PX}" fill="none" stroke="#39404C" stroke-dasharray="3 4" stroke-width="1"/>
+    <text x="208" y="${140+SUN_PX+16}" fill="#79818F" font-size="11" text-anchor="middle" font-family="monospace">el Sol</text>
+    ${st.collapsed?"":`<circle cx="116" cy="140" r="${(px*1.85).toFixed(1)}" fill="url(#g2)"/>`}
+    <circle cx="116" cy="140" r="${px.toFixed(1)}" fill="${st.collapsed?"#05070B":"url(#g1)"}" ${st.collapsed?'stroke="#3A4150" stroke-width="1"':''}/>
+    <text x="116" y="${(140+Math.max(px,14)+20).toFixed(1)}" fill="#C8CEDA" font-size="12" text-anchor="middle" font-family="monospace">${st.collapsed?"sin superficie":sig(st.R)+" R☉"}</text>`;
+}
+
+/* ---------- saltos de fase ---------- */
+function drawJumps(){
+  const box = $("jumps"); box.innerHTML = "";
+  track.segs.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = s.name;
+    b.addEventListener("click", () => setFrac((s.t0 + s.dur*0.5)/track.total));
+    box.appendChild(b);
+  });
+}
+
+/* ---------- render ---------- */
+function render(){
+  const st = stateAt(track, frac);
+  drawStar(st);
+  $("phaseName").textContent = st.phase;
+  $("phaseNote").textContent = st.note;
+  $("rAge").textContent = fmtAge(st.t) + (st.t > 13.8e9 ? "  (más que la edad del universo)" : "");
+  $("rL").textContent = st.collapsed ? "sin emisión" : sig(st.L)+" L☉";
+  $("rR").textContent = st.collapsed ? "sin superficie" : sig(st.R)+" R☉";
+  $("rT").textContent = st.collapsed ? "no aplica" : Math.round(st.T).toLocaleString("es")+" K";
+  const bv = st.collapsed ? null : bvFromT(st.T);
+  $("rBV").innerHTML = bv === null
+    ? (st.collapsed ? "no aplica" : "fuera de escala")
+    : `<span class="swatch" style="background:${rgbStr(bbColor(st.T))}"></span>B−V = ${bv>=0?"+":""}${bv.toFixed(2)}`;
+  $("rM").textContent = st.collapsed ? "no aplica"
+    : (() => { const Mv = 4.83 - 2.5*Math.log10(st.L); return (Mv>=0?"+":"")+Mv.toFixed(2); })();
+  $("timeVal").textContent = fmtAge(frac*track.total);
+  $("timeHint").textContent = `Vida total de esta estrella: ${fmtAge(track.total)}. En la secuencia principal pasa ${(100*track.tms/track.total).toFixed(0)} por ciento de ese tiempo.`;
+}
+function setFrac(f){
+  frac = Math.min(1, Math.max(0, f));
+  $("time").value = Math.round(frac*10000);
+  render();
+}
+
+$("mass").addEventListener("input", e => {
+  const M = massFromSlider(+e.target.value);
+  $("massVal").textContent = M.toFixed(M<10?1:0)+" M☉";
+  track = buildTrack(M); drawJumps(); render();
+});
+$("time").addEventListener("input", e => setFrac(+e.target.value/10000));
+
+$("mass").value = sliderFromMass(1.0);
+$("massVal").textContent = "1.0 M☉";
+drawJumps(); setFrac(0);
+</script>
+
+</body>
+</html>

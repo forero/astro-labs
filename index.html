@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>astro labs</title>
+<style>
+:root{--bg:#F4F5F7;--surface:#FFFFFF;--ink:#141922;--ink-2:#4A5361;--ink-3:#7A8392;--line:#DDE1E8;--accent:#1F6FD0}
+@media (prefers-color-scheme:dark){:root{--bg:#161A1F;--surface:#1D222A;--ink:#EEF1F5;--ink-2:#AFB7C3;--ink-3:#7E8794;--line:#2E353F;--accent:#4F95DE;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;
+  padding:clamp(24px,5vw,56px) max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-family:Georgia,"Iowan Old Style",serif;font-size:clamp(1.8rem,5vw,2.6rem);margin:0 0 6px;letter-spacing:-0.01em}
+p.lede{color:var(--ink-2);margin:0 0 28px;max-width:60ch}
+a.card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:18px 20px;text-decoration:none;color:inherit;margin-bottom:14px}
+a.card:hover{border-color:var(--accent)}
+a.card h2{margin:0 0 4px;font-size:1.1rem}
+a.card p{margin:0;color:var(--ink-2);font-size:0.92rem}
+footer{color:var(--ink-3);font-size:0.82rem;margin-top:32px;border-top:1px solid var(--line);padding-top:14px}
+footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>astro labs</h1>
+  <p class="lede">Páginas interactivas para clases de astronomía. Cada una es un archivo HTML suelto, sin dependencias ni servidor, pensada para abrirse en el celular durante un taller.</p>
+
+  <a class="card" href="evolucion-estelar/">
+    <h2>Evolución de una estrella</h2>
+    <p>Masa inicial y tiempo como perillas. Da los números de cada fase de la vida de una estrella, y su tamaño y color comparados con el Sol. No dibuja ninguna gráfica: eso lo hacen los estudiantes en papel.</p>
+  </a>
+
+  <footer>
+    Jaime Forero-Romero, Universidad de los Andes. Código y fuentes en
+    <a href="https://github.com/forero/astro-labs">github.com/forero/astro-labs</a>.
+    Son modelos de juguete: sirven para la forma de un fenómeno y para el orden de magnitud, no para cuentas finas.
+  </footer>
+</div>
+</body>
+</html>

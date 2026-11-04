@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Simulador interactivo de cómo un satélite pierde estrellas por marea al orbitar el halo de la Vía Láctea, formando una corriente delantera y trasera.">
+<title>Corrientes de marea</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: tres vistas sincronizadas en una fila (se apilan en celular), controles abajo */
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --ink:#141922; --ink-2:#4A5361; --ink-3:#7A8392;
+  --line:#DDE1E8; --line-soft:#EDEFF3;
+  --accent:#1F6FD0; --void:#0B0E14;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --body:"Inter",system-ui,-apple-system,Segoe UI,sans-serif;
+  --display:"Fraunces","Iowan Old Style",Georgia,serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:clamp(18px,3vw,34px);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+.eyebrow{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(1.8rem,4.6vw,2.6rem);margin:0;letter-spacing:-0.01em;text-wrap:balance}
+p.lede{color:var(--ink-2);max-width:62ch;margin:10px 0 0;font-size:0.98rem}
+p.lede b{color:var(--ink);font-weight:600}
+header{padding-bottom:16px;border-bottom:1px solid var(--line)}
+
+.stage{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:900px){.stage{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.stage{grid-template-columns:1fr}}
+.view{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:0}
+.view canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;background:var(--void)}
+.view .cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:9px 12px;
+  border-top:1px solid var(--line);font-family:var(--mono);font-size:0.68rem;letter-spacing:0.05em;
+  text-transform:uppercase;color:var(--ink-3)}
+.view .cap strong{color:var(--ink);font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.legend{display:flex;flex-wrap:wrap;gap:12px 20px;font-family:var(--mono);font-size:0.72rem;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.swatch{width:9px;height:9px;border-radius:50%;flex:none}
+.swatch.line{width:14px;height:0;border-top:2px solid var(--accent);border-radius:0}
+.swatch.disk{width:14px;height:9px;border-radius:2px;background:rgba(31,111,208,0.25)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px 20px}
+.card h2{font-size:0.78rem;font-family:var(--mono);letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;margin:0 0 14px}
+
+.sliders{display:grid;grid-template-columns:1fr 1fr;gap:16px 28px}
+@media (max-width:640px){.sliders{grid-template-columns:1fr}}
+.ctl label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:0.9rem;font-weight:500;margin-bottom:6px}
+.ctl .val{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--accent);font-size:0.85rem}
+.ctl .hint{display:block;font-size:0.76rem;color:var(--ink-3);margin-top:4px;line-height:1.4}
+input[type=range]{width:100%;accent-color:var(--accent);height:26px;cursor:pointer}
+
+.transport{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+button{font-family:var(--mono);font-size:0.82rem;letter-spacing:0.02em;background:#fff;border:1px solid var(--line);
+  color:var(--ink);padding:9px 16px;border-radius:8px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{opacity:.9;color:#fff}
+.speedgroup{display:flex;gap:4px;margin-left:auto}
+.speedgroup button{padding:9px 11px}
+.speedgroup button.active{border-color:var(--accent);color:var(--accent);background:var(--line-soft)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--surface);padding:12px 14px}
+.stat .k{font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-3);font-family:var(--mono);margin-bottom:5px}
+.stat .v{font-family:var(--mono);font-size:1.05rem;color:var(--ink);font-variant-numeric:tabular-nums}
+
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+summary{cursor:pointer;font-family:var(--mono);font-size:0.78rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent)}
+.formula-box{margin-top:14px;display:grid;gap:14px}
+@media (min-width:640px){.formula-box{grid-template-columns:1fr 1fr}}
+.formula{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--line-soft)}
+.formula .name{font-size:0.72rem;color:var(--ink-3);margin-bottom:8px;font-family:var(--mono)}
+.formula .eq{font-family:var(--mono);font-size:0.9rem;color:var(--accent)}
+.formula p{font-size:0.8rem;color:var(--ink-2);margin-top:8px;line-height:1.5}
+
+footer{color:var(--ink-3);font-size:0.78rem;line-height:1.6;border-top:1px solid var(--line);padding-top:14px}
+footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Taller 13B · Introducción a la Astronomía General</p>
+    <h1>Corrientes de marea</h1>
+    <p class="lede">Un satélite (una galaxia enana o un cúmulo globular) orbita dentro del halo de materia oscura que pesaron en el <b>Taller 13A</b>. La marea de ese halo le arranca estrellas, que se quedan atrás formando una corriente. El disco sombreado marca dónde está la Galaxia: "de frente" la miran desde arriba, "de canto" la miran de lado, viendo directamente qué tan achatado es el halo.</p>
+  </header>
+
+  <div class="stage">
+    <div class="view">
+      <canvas id="canvasTop" width="600" height="600" aria-label="Vista de frente de la órbita del satélite y la corriente"></canvas>
+      <div class="cap"><span>De frente (desde arriba)</span><strong id="capTop">R = 35 kpc</strong></div>
+    </div>
+    <div class="view">
+      <canvas id="canvasSide" width="600" height="600" aria-label="Vista de canto del disco galáctico, mostrando el achatamiento del halo"></canvas>
+      <div class="cap"><span>De canto (disco de lado)</span><strong id="capSide">q = 0.80</strong></div>
+    </div>
+    <div class="view">
+      <canvas id="canvasSky" width="600" height="600" aria-label="Vista del cielo desde el Sol, longitud contra latitud"></canvas>
+      <div class="cap"><span>Cielo, desde el Sol</span><strong id="capSky">l, b simulados</strong></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:#4F95DE"></i>Centro galáctico</span>
+    <span><i class="swatch" style="background:#EEF1F5"></i>Satélite</span>
+    <span><i class="swatch" style="background:#59D6DE"></i>Brazo delantero (L1, interior)</span>
+    <span><i class="swatch" style="background:#F2607F"></i>Brazo trasero (L2, exterior)</span>
+    <span><i class="swatch" style="background:#7A8392"></i>El Sol (8 kpc)</span>
+    <span><i class="swatch line"></i>Contornos de igual potencial (forma del halo)</span>
+    <span><i class="swatch disk"></i>Disco galáctico (esquemático, no a escala)</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Tiempo</div><div class="v" id="statTime">0.00 Gyr</div></div>
+    <div class="stat"><div class="k">Perigalacticones</div><div class="v" id="statPeri">0</div></div>
+    <div class="stat"><div class="k">Radio galactocéntrico</div><div class="v" id="statR">35.0 kpc</div></div>
+    <div class="stat"><div class="k">Radio de marea r<sub>t</sub></div><div class="v" id="statRt">— kpc</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Controles</h2>
+    <div class="sliders">
+      <div class="ctl">
+        <label for="mSat">Masa del satélite <span class="val" id="mSatVal">2.0×10⁸ M☉</span></label>
+        <input type="range" id="mSat" min="7.0" max="9.3" step="0.05" value="8.3">
+      </div>
+      <div class="ctl">
+        <label for="rApo">Radio de apogalacticón <span class="val" id="rApoVal">35 kpc</span></label>
+        <input type="range" id="rApo" min="20" max="60" step="1" value="35">
+      </div>
+      <div class="ctl">
+        <label for="ecc">Excentricidad orbital <span class="val" id="eccVal">0.50</span></label>
+        <input type="range" id="ecc" min="0" max="0.85" step="0.05" value="0.5">
+      </div>
+      <div class="ctl">
+        <label for="qHalo">Achatamiento del halo (q) <span class="val" id="qHaloVal">0.80 (achatado)</span></label>
+        <input type="range" id="qHalo" min="0.6" max="1.0" step="0.02" value="0.8">
+        <span class="hint">q = 1.0 es esférico (vista de canto: círculos). Entre menor, más se achatan los contornos: se ve directamente en la vista de canto.</span>
+      </div>
+      <div class="ctl" style="grid-column:1/-1">
+        <label for="incl">Inclinación de la órbita <span class="val" id="inclVal">45°</span></label>
+        <input type="range" id="incl" min="0" max="90" step="1" value="45">
+        <span class="hint">Con 0° o 90° el plano orbital no precesa aunque el halo sea achatado. El efecto se ve mejor en inclinaciones intermedias.</span>
+      </div>
+    </div>
+    <div class="transport">
+      <button class="primary" id="btnPlay">Pausar</button>
+      <button id="btnReset">Reiniciar</button>
+      <div class="speedgroup" role="group" aria-label="Velocidad">
+        <button data-speed="1" class="active">×1</button>
+        <button data-speed="2">×2</button>
+        <button data-speed="4">×4</button>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>La física detrás (igual que en el Taller 13A)</summary>
+    <div class="formula-box">
+      <div class="formula">
+        <div class="name">Masa encerrada, del Taller 13A</div>
+        <div class="eq">M(&lt;R)/M☉ = 2.32×10⁵ · (v/km s⁻¹)² · (R/kpc)</div>
+        <p>La misma fórmula de la única órbita circular, aplicada al halo donde vive el satélite.</p>
+      </div>
+      <div class="formula">
+        <div class="name">Radio de marea (Jacobi)</div>
+        <div class="eq">r<sub>t</sub> = R · ( m / 3M(&lt;R) )<sup>1/3</sup></div>
+        <p>Más allá de r<sub>t</sub> la gravedad del satélite ya no retiene sus propias estrellas: se las lleva la marea de la Galaxia.</p>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    Modelo de juguete: halo con curva de rotación plana (v<sub>max</sub> = 220 km/s, el mismo número del Taller 13A), achatado por el parámetro q. Sus contornos de igual potencial son elipsoides exactos de razón de ejes q, lo que se ve en la vista de canto. El satélite y las estrellas liberadas se integran como partículas de prueba en ese potencial; el satélite no siente su propia gravedad perdida. l y b son una longitud y latitud simuladas, no las coordenadas galácticas reales.<br>
+    Jaime Forero-Romero, Universidad de los Andes. Código y fuentes en
+    <a href="https://github.com/forero/astro-labs">github.com/forero/astro-labs</a>.
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ---- constants ----
+var G_EFF = 2.32e5;          // Msun, for M(<R) = G_EFF * v^2 * R  (v in km/s, R in kpc)
+var V0 = 220;                 // km/s, flat rotation curve, same as Taller 13A
+var D_CORE = 1.0;             // kpc, core softening
+var R_SUN = 8.0;               // kpc, same as Taller 13A
+var KMS_TO_KPCMYR = 1.0227e-3; // 1 km/s = 1.0227e-3 kpc/Myr
+var DT = 1.5;                  // Myr per integration step
+var RELEASE_EVERY = 8;         // steps between particle release
+var MAX_PARTICLES = 2600;
+
+function vcirc(R){ return V0 * R / Math.sqrt(R*R + D_CORE*D_CORE); }
+function menc(R){ var v = vcirc(R); return G_EFF * v * v * R; }
+function rtidal(R, m){ return R * Math.cbrt(m / (3 * menc(R))); }
+
+// ---- state ----
+var state = {
+  mSat: Math.pow(10, 8.3),
+  rApo: 35,
+  ecc: 0.5,
+  q: 0.8,
+  inclDeg: 45,
+  playing: true,
+  speed: 1
+};
+
+var sat = {x:0,y:0,z:0, vx:0,vy:0,vz:0};
+var particles = []; // {x,y,z,vx,vy,vz,kind,age}
+var stepCount = 0;
+var elapsedMyr = 0;
+var periCount = 0;
+var prevR = null;
+var prevDR = null;
+
+function accel(x,y,z,q){
+  var D = x*x + y*y + (z*z)/(q*q) + D_CORE*D_CORE;
+  var f = -(V0*V0) / D;
+  return [f*x, f*y, f*(z/(q*q))];
+}
+
+function leapfrogStep(p, q){
+  var a0 = accel(p.x,p.y,p.z,q);
+  var vhx = p.vx + 0.5*DT*a0[0]*KMS_TO_KPCMYR;
+  var vhy = p.vy + 0.5*DT*a0[1]*KMS_TO_KPCMYR;
+  var vhz = p.vz + 0.5*DT*a0[2]*KMS_TO_KPCMYR;
+  p.x += DT*KMS_TO_KPCMYR*vhx;
+  p.y += DT*KMS_TO_KPCMYR*vhy;
+  p.z += DT*KMS_TO_KPCMYR*vhz;
+  var a1 = accel(p.x,p.y,p.z,q);
+  p.vx = vhx + 0.5*DT*a1[0]*KMS_TO_KPCMYR;
+  p.vy = vhy + 0.5*DT*a1[1]*KMS_TO_KPCMYR;
+  p.vz = vhz + 0.5*DT*a1[2]*KMS_TO_KPCMYR;
+}
+
+function resetSim(){
+  var R0 = state.rApo;
+  var f = 1 - 0.5*state.ecc; // fraction of circular speed at apocenter
+  var vc = vcirc(R0);
+  var inc = state.inclDeg * Math.PI/180;
+  sat.x = R0; sat.y = 0; sat.z = 0;
+  sat.vx = 0;
+  sat.vy = f*vc*Math.cos(inc);
+  sat.vz = f*vc*Math.sin(inc);
+  particles = [];
+  stepCount = 0;
+  elapsedMyr = 0;
+  periCount = 0;
+  prevR = Math.sqrt(sat.x*sat.x+sat.y*sat.y+sat.z*sat.z);
+  prevDR = 0;
+}
+
+function currentRt(){
+  var R = Math.sqrt(sat.x*sat.x+sat.y*sat.y+sat.z*sat.z);
+  return rtidal(R, state.mSat);
+}
+
+function stepPhysics(){
+  var q = state.q;
+  leapfrogStep(sat, q);
+  for (var i=0;i<particles.length;i++) leapfrogStep(particles[i], q);
+  for (var i=0;i<particles.length;i++) particles[i].age += DT;
+
+  stepCount++;
+  elapsedMyr += DT;
+
+  var R = Math.sqrt(sat.x*sat.x+sat.y*sat.y+sat.z*sat.z);
+  var dR = R - prevR;
+  if (prevDR < 0 && dR >= 0) periCount++;
+  prevDR = dR; prevR = R;
+
+  if (stepCount % RELEASE_EVERY === 0){
+    var rt = rtidal(R, state.mSat);
+    var rhx = sat.x/R, rhy = sat.y/R, rhz = sat.z/R;
+    particles.push({x:sat.x - rhx*rt, y:sat.y - rhy*rt, z:sat.z - rhz*rt,
+                     vx:sat.vx, vy:sat.vy, vz:sat.vz, kind:'leading', age:0});
+    particles.push({x:sat.x + rhx*rt, y:sat.y + rhy*rt, z:sat.z + rhz*rt,
+                     vx:sat.vx, vy:sat.vy, vz:sat.vz, kind:'trailing', age:0});
+    if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
+  }
+}
+
+// ---- rendering ----
+var cvTop = document.getElementById('canvasTop');
+var cvSide = document.getElementById('canvasSide');
+var cvSky = document.getElementById('canvasSky');
+var ctxTop = cvTop.getContext('2d');
+var ctxSide = cvSide.getContext('2d');
+var ctxSky = cvSky.getContext('2d');
+
+function fitCanvas(cv){
+  var dpr = window.devicePixelRatio || 1;
+  var cssSize = cv.clientWidth || 300;
+  if (cv._cssSize === cssSize && cv._dpr === dpr) return;
+  cv._cssSize = cssSize; cv._dpr = dpr;
+  cv.width = Math.round(cssSize*dpr);
+  cv.height = Math.round(cssSize*dpr);
+}
+
+var ink = '#EEF1F5', inkDim = '#8A93A3', gridC = 'rgba(238,241,245,0.14)',
+    accentDark = '#4F95DE', leadingC = '#59D6DE', trailingC = '#F2607F', sunC = '#7A8392',
+    voidBg = '#0B0E14';
+
+function drawTop(){
+  fitCanvas(cvTop);
+  var W = cvTop.width, H = cvTop.height;
+  ctxTop.setTransform(1,0,0,1,0,0);
+  ctxTop.fillStyle = voidBg;
+  ctxTop.fillRect(0,0,W,H);
+
+  var half = 85; // kpc half-width shown
+  var scale = (Math.min(W,H)/2 - 14*(W/600)) / half;
+  var cx = W/2, cy = H/2;
+  function toPx(x,y){ return [cx + x*scale, cy - y*scale]; }
+
+  ctxTop.strokeStyle = gridC; ctxTop.lineWidth = Math.max(1,W/600);
+  ctxTop.font = (11*(W/600))+'px IBM Plex Mono, monospace';
+  ctxTop.fillStyle = inkDim;
+  [20,40,60,80].forEach(function(r){
+    ctxTop.beginPath();
+    ctxTop.arc(cx,cy,r*scale,0,Math.PI*2);
+    ctxTop.stroke();
+    ctxTop.fillText(r+' kpc', cx+4*(W/600), cy - r*scale - 3*(W/600));
+  });
+
+  // disco galáctico, esquemático, visto de frente (no a escala)
+  var diskR = 15*scale;
+  ctxTop.fillStyle = 'rgba(79,149,222,0.14)';
+  ctxTop.beginPath(); ctxTop.arc(cx,cy,diskR,0,Math.PI*2); ctxTop.fill();
+  ctxTop.strokeStyle = 'rgba(79,149,222,0.45)';
+  ctxTop.setLineDash([4*(W/600),4*(W/600)]);
+  ctxTop.beginPath(); ctxTop.arc(cx,cy,diskR,0,Math.PI*2); ctxTop.stroke();
+  ctxTop.setLineDash([]);
+  ctxTop.fillStyle = inkDim;
+  ctxTop.fillText('disco (esquema)', cx+diskR*0.72, cy-diskR*0.72);
+
+  var sunP = toPx(-R_SUN, 0);
+  ctxTop.fillStyle = sunC;
+  ctxTop.beginPath(); ctxTop.arc(sunP[0], sunP[1], 3.2*(W/600), 0, Math.PI*2); ctxTop.fill();
+
+  ctxTop.fillStyle = accentDark;
+  ctxTop.beginPath(); ctxTop.arc(cx,cy,3.6*(W/600),0,Math.PI*2); ctxTop.fill();
+  ctxTop.strokeStyle = 'rgba(79,149,222,0.4)';
+  ctxTop.lineWidth = 3*(W/600);
+  ctxTop.beginPath(); ctxTop.arc(cx,cy,8*(W/600),0,Math.PI*2); ctxTop.stroke();
+
+  for (var i=0;i<particles.length;i++){
+    var p = particles[i];
+    var pr = toPx(p.x,p.y);
+    var alpha = Math.max(0.25, 1 - p.age/4000);
+    ctxTop.fillStyle = (p.kind==='leading'? leadingC : trailingC);
+    ctxTop.globalAlpha = alpha;
+    ctxTop.beginPath(); ctxTop.arc(pr[0],pr[1], 1.8*(W/600), 0, Math.PI*2); ctxTop.fill();
+  }
+  ctxTop.globalAlpha = 1;
+
+  var sp = toPx(sat.x, sat.y);
+  ctxTop.fillStyle = ink;
+  ctxTop.beginPath(); ctxTop.arc(sp[0], sp[1], 3.6*(W/600), 0, Math.PI*2); ctxTop.fill();
+  ctxTop.strokeStyle = 'rgba(238,241,245,0.4)';
+  ctxTop.beginPath(); ctxTop.arc(sp[0], sp[1], 6*(W/600), 0, Math.PI*2); ctxTop.stroke();
+}
+
+function drawSide(){
+  fitCanvas(cvSide);
+  var W = cvSide.width, H = cvSide.height;
+  ctxSide.setTransform(1,0,0,1,0,0);
+  ctxSide.fillStyle = voidBg;
+  ctxSide.fillRect(0,0,W,H);
+
+  var half = 85;
+  var scale = (Math.min(W,H)/2 - 14*(W/600)) / half;
+  var cx = W/2, cy = H/2;
+  function toPx(x,z){ return [cx + x*scale, cy - z*scale]; }
+
+  // equipotential ellipses: x^2 + z^2/q^2 = r^2  -> semi-axis r (x), r*q (z)
+  ctxSide.strokeStyle = accentDark; ctxSide.lineWidth = Math.max(1,W/600);
+  ctxSide.globalAlpha = 0.55;
+  ctxSide.font = (11*(W/600))+'px IBM Plex Mono, monospace';
+  ctxSide.fillStyle = inkDim;
+  [20,40,60,80].forEach(function(r){
+    ctxSide.beginPath();
+    ctxSide.ellipse(cx,cy, r*scale, r*state.q*scale, 0, 0, Math.PI*2);
+    ctxSide.stroke();
+    ctxSide.globalAlpha = 1;
+    ctxSide.fillText(r+' kpc', cx+4*(W/600), cy - r*state.q*scale - 3*(W/600));
+    ctxSide.globalAlpha = 0.55;
+  });
+  ctxSide.globalAlpha = 1;
+
+  // midplane line
+  ctxSide.strokeStyle = gridC;
+  ctxSide.beginPath(); ctxSide.moveTo(cx-half*scale,cy); ctxSide.lineTo(cx+half*scale,cy); ctxSide.stroke();
+
+  // disco galáctico, esquemático, visto de canto (no a escala)
+  var diskRx = 15*scale, diskRz = 1.8*scale;
+  ctxSide.fillStyle = 'rgba(79,149,222,0.28)';
+  ctxSide.beginPath(); ctxSide.ellipse(cx,cy,diskRx,diskRz,0,0,Math.PI*2); ctxSide.fill();
+  ctxSide.strokeStyle = 'rgba(79,149,222,0.6)';
+  ctxSide.beginPath(); ctxSide.ellipse(cx,cy,diskRx,diskRz,0,0,Math.PI*2); ctxSide.stroke();
+  ctxSide.fillStyle = inkDim;
+  ctxSide.fillText('disco (esquema, de canto)', cx+diskRx*0.5, cy-diskRz-6*(W/600));
+
+  var sunP = toPx(-R_SUN, 0);
+  ctxSide.fillStyle = sunC;
+  ctxSide.beginPath(); ctxSide.arc(sunP[0], sunP[1], 3.2*(W/600), 0, Math.PI*2); ctxSide.fill();
+
+  ctxSide.fillStyle = accentDark;
+  ctxSide.beginPath(); ctxSide.arc(cx,cy,3.6*(W/600),0,Math.PI*2); ctxSide.fill();
+
+  for (var i=0;i<particles.length;i++){
+    var p = particles[i];
+    var pr = toPx(p.x,p.z);
+    var alpha = Math.max(0.25, 1 - p.age/4000);
+    ctxSide.fillStyle = (p.kind==='leading'? leadingC : trailingC);
+    ctxSide.globalAlpha = alpha;
+    ctxSide.beginPath(); ctxSide.arc(pr[0],pr[1], 1.8*(W/600), 0, Math.PI*2); ctxSide.fill();
+  }
+  ctxSide.globalAlpha = 1;
+
+  var sp = toPx(sat.x, sat.z);
+  ctxSide.fillStyle = ink;
+  ctxSide.beginPath(); ctxSide.arc(sp[0], sp[1], 3.6*(W/600), 0, Math.PI*2); ctxSide.fill();
+  ctxSide.strokeStyle = 'rgba(238,241,245,0.4)';
+  ctxSide.beginPath(); ctxSide.arc(sp[0], sp[1], 6*(W/600), 0, Math.PI*2); ctxSide.stroke();
+}
+
+function drawSky(){
+  fitCanvas(cvSky);
+  var W = cvSky.width, H = cvSky.height;
+  ctxSky.setTransform(1,0,0,1,0,0);
+  ctxSky.fillStyle = voidBg;
+  ctxSky.fillRect(0,0,W,H);
+
+  var padL = 40*(W/600), padB = 28*(W/600), padT = 14*(W/600), padR = 14*(W/600);
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  var lMin=-180,lMax=180,bMin=-90,bMax=90;
+  function toPx(l,b){
+    return [padL + (l-lMin)/(lMax-lMin)*plotW, padT + (bMax-b)/(bMax-bMin)*plotH];
+  }
+
+  ctxSky.strokeStyle = gridC; ctxSky.lineWidth = Math.max(1,W/600);
+  ctxSky.fillStyle = inkDim;
+  ctxSky.font = (10.5*(W/600))+'px IBM Plex Mono, monospace';
+  [-90,0,90].forEach(function(bb){
+    var p0=toPx(lMin,bb), p1=toPx(lMax,bb);
+    ctxSky.beginPath(); ctxSky.moveTo(p0[0],p0[1]); ctxSky.lineTo(p1[0],p1[1]); ctxSky.stroke();
+    ctxSky.fillText(bb+'°', 4*(W/600), p0[1]+3*(W/600));
+  });
+  [-180,-90,0,90,180].forEach(function(ll){
+    var p0=toPx(ll,bMin), p1=toPx(ll,bMax);
+    ctxSky.beginPath(); ctxSky.moveTo(p0[0],p0[1]); ctxSky.lineTo(p1[0],p1[1]); ctxSky.stroke();
+    ctxSky.fillText(ll+'°', p0[0]-10*(W/600), H - 10*(W/600));
+  });
+
+  function project(px,py,pz){
+    var dx = px - (-R_SUN), dy = py - 0, dz = pz - 0;
+    var r = Math.sqrt(dx*dx+dy*dy+dz*dz);
+    var l = Math.atan2(dy,dx) * 180/Math.PI;
+    var b = Math.asin(Math.max(-1,Math.min(1,dz/r))) * 180/Math.PI;
+    return [l,b];
+  }
+
+  for (var i=0;i<particles.length;i++){
+    var p = particles[i];
+    var lb = project(p.x,p.y,p.z);
+    if (lb[0]<lMin||lb[0]>lMax||lb[1]<bMin||lb[1]>bMax) continue;
+    var pr = toPx(lb[0],lb[1]);
+    var alpha = Math.max(0.25, 1 - p.age/4000);
+    ctxSky.globalAlpha = alpha;
+    ctxSky.fillStyle = (p.kind==='leading'? leadingC : trailingC);
+    ctxSky.beginPath(); ctxSky.arc(pr[0],pr[1],1.8*(W/600),0,Math.PI*2); ctxSky.fill();
+  }
+  ctxSky.globalAlpha = 1;
+
+  var slb = project(sat.x,sat.y,sat.z);
+  if (slb[0]>=lMin && slb[0]<=lMax && slb[1]>=bMin && slb[1]<=bMax){
+    var sp = toPx(slb[0],slb[1]);
+    ctxSky.fillStyle = ink;
+    ctxSky.beginPath(); ctxSky.arc(sp[0],sp[1],3.6*(W/600),0,Math.PI*2); ctxSky.fill();
+  }
+}
+
+function fmtMass(m){
+  var exp = Math.floor(Math.log10(m));
+  var mant = m/Math.pow(10,exp);
+  return mant.toFixed(1)+'×10'+toSup(exp)+' M☉';
+}
+function toSup(n){
+  var map={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+  return String(n).split('').map(function(c){return map[c]||c;}).join('');
+}
+
+function updateReadouts(){
+  document.getElementById('statTime').textContent = (elapsedMyr/1000).toFixed(2)+' Gyr';
+  document.getElementById('statPeri').textContent = periCount;
+  var R = Math.sqrt(sat.x*sat.x+sat.y*sat.y+sat.z*sat.z);
+  document.getElementById('statR').textContent = R.toFixed(1)+' kpc';
+  document.getElementById('statRt').textContent = currentRt().toFixed(2)+' kpc';
+  document.getElementById('capTop').textContent = 'R = '+R.toFixed(1)+' kpc';
+  document.getElementById('capSide').textContent = 'q = '+state.q.toFixed(2);
+}
+
+// ---- UI wiring ----
+function bindSlider(id, fmt, onChange){
+  var el = document.getElementById(id);
+  var out = document.getElementById(id+'Val');
+  function sync(){ out.textContent = fmt(parseFloat(el.value)); onChange(parseFloat(el.value)); }
+  el.addEventListener('input', sync);
+  return sync;
+}
+
+bindSlider('mSat', function(v){ return fmtMass(Math.pow(10,v)); }, function(v){ state.mSat = Math.pow(10,v); })();
+bindSlider('rApo', function(v){ return Math.round(v)+' kpc'; }, function(v){ state.rApo = v; resetSim(); })();
+bindSlider('ecc', function(v){ return v.toFixed(2); }, function(v){ state.ecc = v; resetSim(); })();
+bindSlider('qHalo', function(v){ return v.toFixed(2)+(v>0.96?' (esférico)':' (achatado)'); }, function(v){ state.q = v; })();
+bindSlider('incl', function(v){ return Math.round(v)+'°'; }, function(v){ state.inclDeg = v; resetSim(); })();
+
+document.getElementById('btnPlay').addEventListener('click', function(){
+  state.playing = !state.playing;
+  this.textContent = state.playing ? 'Pausar' : 'Reanudar';
+});
+document.getElementById('btnReset').addEventListener('click', function(){ resetSim(); });
+
+var speedBtns = document.querySelectorAll('.speedgroup button');
+speedBtns.forEach(function(b){
+  b.addEventListener('click', function(){
+    state.speed = parseFloat(b.getAttribute('data-speed'));
+    speedBtns.forEach(function(x){x.classList.remove('active')});
+    b.classList.add('active');
+  });
+});
+
+// ---- main loop ----
+function tick(){
+  if (state.playing){
+    var n = state.speed;
+    for (var i=0;i<n;i++) stepPhysics();
+  }
+  drawTop();
+  drawSide();
+  drawSky();
+  updateReadouts();
+  requestAnimationFrame(tick);
+}
+
+resetSim();
+requestAnimationFrame(tick);
+
+})();
+</script>
+</body>
+</html>

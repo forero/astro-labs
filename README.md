@@ -13,6 +13,14 @@ suelto, sin dependencias ni servidor: se abren en el celular o en un computador 
   propósito: las gráficas las hacen los estudiantes en papel. Las ecuaciones que resuelve
   están escritas en la misma página.
 
+- **[Corrientes de marea](https://forero.github.io/astro-labs/corrientes-de-marea/)**
+  Un satélite (galaxia enana o cúmulo globular) orbita el halo de materia oscura de la Vía
+  Láctea y pierde estrellas por marea, formando una corriente delantera y una trasera. Tres
+  vistas sincronizadas (de frente, de canto y desde el cielo visto desde el Sol) y control
+  sobre la masa del satélite, la órbita y el achatamiento del halo, para ver si la corriente
+  precesa según la forma del halo. Reusa las mismas fórmulas de masa encerrada y radio de
+  marea que resuelven los estudiantes a mano.
+
 ## Qué tan en serio tomarse estos modelos
 
 Son modelos de juguete, anclados en cifras reales pero con una precisión de un factor de dos.
